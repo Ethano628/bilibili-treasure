@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B站宝藏清单</title>
+<meta name="description" content="从 B 站「每周必看」全部期数与「入站必刷」中精选，到现在仍值得一看的视频。">
+<style>
+:root{
+  --bg:#f7f5f0;--surface:#fff;--ink:#1d1d1f;--muted:#6b6b70;--line:#e6e2d9;
+  --accent:#e0457b;--accent-soft:#fde8ef;--blue:#1f78c8;--chip:#efece4;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#151517;--surface:#1f1f22;--ink:#ececee;--muted:#9a9aa1;--line:#2e2e33;
+  --accent:#ff6f9c;--accent-soft:#3a1f2a;--blue:#6fb3ff;--chip:#2a2a2e;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+header{padding:48px 0 20px}
+h1{font-size:34px;line-height:1.2;margin:0 0 10px;letter-spacing:.5px}
+h1 span{color:var(--accent)}
+.lede{color:var(--muted);margin:0;max-width:720px}
+.stats{display:flex;flex-wrap:wrap;gap:8px 20px;margin:16px 0 0;color:var(--muted);font-size:13px}
+.stats b{color:var(--ink);font-variant-numeric:tabular-nums}
+.bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 0}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tools input{flex:1 1 220px;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);color:var(--ink);font:inherit}
+.tools select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:0;border-radius:999px;padding:5px 12px;background:var(--chip);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);color:#fff}
+section{padding:28px 0 4px}
+section h2{font-size:20px;margin:0 0 4px;display:flex;align-items:baseline;gap:10px}
+section h2 small{font-size:13px;color:var(--muted);font-weight:400}
+section p.desc{margin:0 0 14px;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+a.card{display:flex;flex-direction:column;gap:6px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;color:inherit;text-decoration:none;transition:border-color .15s,transform .15s}
+a.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+a.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.t{font-weight:600;font-size:15px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.up{font-size:13px;color:var(--blue)}
+.why{font-size:14px;color:var(--ink);opacity:.86}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin-top:auto;padding-top:4px;font-variant-numeric:tabular-nums}
+.tag{background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:0 6px}
+.empty{padding:40px 0;color:var(--muted);text-align:center}
+footer{padding:40px 0 60px;color:var(--muted);font-size:12px}
+footer a{color:inherit}
+@media (max-width:520px){h1{font-size:27px}header{padding-top:32px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>B站<span>宝藏</span>清单</h1>
+  <p class="lede">把 B 站官方「每周必看」从第 1 期到最新一期，加上「入站必刷」全部收集起来，去重后按收录次数、播放量、收藏量和收藏率综合打分，剔除过了时效的内容，挑出到现在还值得看的视频，按主题分好类。</p>
+  <div class="stats" id="stats"></div>
+</header>
+<div class="bar"><div class="wrap">
+  <div class="tools">
+    <input id="q" type="search" placeholder="搜标题、UP 主、推荐理由…" aria-label="搜索">
+    <select id="sort" aria-label="排序">
+      <option value="score">综合推荐</option>
+      <option value="play">播放最多</option>
+      <option value="collect">收藏最多</option>
+      <option value="pub">最新发布</option>
+    </select>
+  </div>
+  <nav class="chips" id="chips" aria-label="主题"></nav>
+</div></div>
+<main class="wrap" id="main"></main>
+<footer class="wrap" id="foot"></footer>
+<script src="data.js"></script>
+<script>
+const D = window.BILI_DATA;
+const fmt = n => n >= 1e8 ? (n/1e8).toFixed(2).replace(/\.?0+$/,'') + '亿' : n >= 1e4 ? (n/1e4).toFixed(n>=1e6?0:1).replace(/\.0$/,'') + '万' : String(n);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+document.getElementById('stats').innerHTML =
+  `<span>每周必看 <b>${D.meta.issues}</b> 期（第 1–${D.meta.latest} 期）</span>` +
+  `<span>收录 <b>${D.meta.total.toLocaleString()}</b> 个视频</span>` +
+  `<span>入站必刷 <b>${D.meta.precious}</b> 个</span>` +
+  `<span>精选 <b>${D.items.length}</b> 个</span>` +
+  `<span>数据更新于 <b>${D.meta.updated}</b></span>`;
+let cat = 'all';
+const chips = document.getElementById('chips');
+const cats = [{id:'all',name:'全部'}, ...D.cats];
+chips.innerHTML = cats.map(c => `<button class="chip" data-c="${c.id}" aria-pressed="${c.id==='all'}">${esc(c.name)}</button>`).join('');
+chips.onclick = e => { const b = e.target.closest('.chip'); if (!b) return; cat = b.dataset.c;
+  chips.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === b)); render(); window.scrollTo({top: document.querySelector('.bar').offsetTop, behavior:'smooth'}); };
+const card = v => `<a class="card" href="https://www.bilibili.com/video/${v.bvid}" target="_blank" rel="noopener">
+  <div class="t">${esc(v.title)}</div>
+  <div class="up">UP：${esc(v.up)}</div>
+  <div class="why">${esc(v.why)}</div>
+  <div class="meta">${v.precious ? '<span class="tag">入站必刷</span>' : ''}${v.weeks.length ? `<span>每周必看 第 ${v.weeks.join('、')} 期</span>` : ''}<span>播放 ${fmt(v.play)}</span><span>收藏 ${fmt(v.collect)}</span><span>${v.year}</span></div></a>`;
+function render(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const key = document.getElementById('sort').value;
+  let list = D.items.filter(v => !q || (v.title + v.up + v.why).toLowerCase().includes(q));
+  list.sort((a,b) => b[key] - a[key]);
+  const show = cat === 'all' ? D.cats : D.cats.filter(c => c.id === cat);
+  const html = show.map(c => { const xs = list.filter(v => v.cat === c.id); if (!xs.length) return '';
+    return `<section id="${c.id}"><h2>${esc(c.name)}<small>${xs.length} 个</small></h2><p class="desc">${esc(c.desc)}</p><div class="grid">${xs.map(card).join('')}</div></section>`; }).join('');
+  document.getElementById('main').innerHTML = html || '<p class="empty">没有找到匹配的视频</p>';
+}
+document.getElementById('q').oninput = render;
+document.getElementById('sort').onchange = render;
+document.getElementById('foot').innerHTML = `数据来自 B 站公开接口（每周必看、入站必刷），播放与收藏数为抓取时的数值。本站不存储视频与封面，点击卡片跳转 B 站观看。<br>评分方法：${esc(D.meta.method)}`;
+render();
+</script>
+</body>
+</html>
